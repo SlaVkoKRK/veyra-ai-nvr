@@ -1,14 +1,14 @@
 # Veyra AI-NVR
 
-Current CORE version: **0.8.9**.
+Current CORE version: **0.9.1**.
 
-## 0.8.9 emergency VAAPI rollback
+## 0.9.1 — updater hotfix + black-frame watchdog
 
-- reverts only the Intel VAAPI userspace override introduced in 0.8.8;
-- keeps the proven Frigate 0.17.2 FFmpeg 7.0.2 runtime from 0.8.7;
-- restores Debian Bookworm `intel-media-va-driver` + `i965-va-driver`, which was stable on the target Skylake host;
-- no changes to motion, night assist, Coral, tracking, notifications or detection cadence;
-- updater diagnostics now preserve the Docker build log for future failures.
+- fixes the updater bug that reported a failed update as `kod 0` because Bash `!` inverted the real exit status before it was captured;
+- differential GitHub update packages now always include `docker-compose.yml`, which is required by `apply-update.sh` package validation;
+- includes the per-camera NV12 black-frame watchdog prepared in 0.9.0;
+- keeps the stable media stack from 0.8.9: Frigate 0.17.2 FFmpeg 7.0.2 with Debian VAAPI drivers;
+- future updater failures preserve the real exit code and build log tail.
 
 Use the in-panel updater from **Ustawienia systemu → Sprawdź aktualizacje / Aktualizuj**.
 
