@@ -1,0 +1,92 @@
+version: 4
+
+classes:
+  - person
+  - bicycle
+  - car
+  - motorcycle
+  - airplane
+  - bus
+  - train
+  - truck
+  - boat
+  - bird
+  - cat
+  - dog
+  - horse
+  - sheep
+  - cow
+  - elephant
+  - bear
+
+coral:
+  model: /models/model.tflite
+  input_size: 512
+  device: pci
+
+video:
+  vaapi_device: /dev/dri/renderD128
+  direct_camera_input: auto
+
+events:
+  retention_days: 7
+  mqtt_update_interval: 30.0
+  mqtt_snapshot_update_interval: 2.0
+  mqtt_active_update_interval: 2.0
+  mqtt_stationary_update_interval: 8.0
+  mqtt_min_update_interval: 0.75
+
+home_assistant:
+  api_enabled: true
+  private_network_only: true
+
+mqtt:
+  enabled: false
+  host: 192.168.1.10
+  port: 1883
+  user: CHANGE_ME
+  password: CHANGE_ME
+  prefix: ainvr
+
+go2rtc:
+  api:
+    listen: :1984
+  rtsp:
+    listen: :8554
+  streams:
+    kamera_1:
+      - rtsp://user:CHANGE_ME@192.168.1.201:554/cam/realmonitor?channel=1&subtype=0#media=video#backchannel=0
+
+notifications:
+  enabled: true
+
+cameras:
+  kamera_1:
+    enabled: true
+    stream: kamera_1
+    detect:
+      width: 1920
+      height: 1080
+      fps: 5
+      stationary_classifier: true
+      stationary_threshold_seconds: 10
+      stationary_interval_seconds: 10
+    objects:
+      track:
+        - person
+        - car
+      filters:
+        person:
+          min_score: 0.50
+          threshold: 0.70
+        car:
+          min_score: 0.50
+          threshold: 0.70
+    motion:
+      frame_height: 512
+      threshold: 30
+      contour_area: 10
+      threshold_night: 20
+      contour_area_night: 6
+      night_improve_contrast: true
+      wind_guard_enabled: true
