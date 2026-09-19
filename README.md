@@ -6,13 +6,15 @@ Current CORE version: **0.8.5**.
 
 ## Update channel
 
-Veyra 0.8.5 can check and install updates directly from the web panel:
+Veyra 0.8.5 introduces updates directly from the web panel:
 
 **Ustawienia systemu → Sprawdź aktualizacje / Aktualizuj**
 
-The panel checks the public `VERSION` file. The host-side updater downloads `dist/veyra_update.tar.gz.b64`, decodes it locally, verifies the published SHA256 and applies it only when the package `VERSION` matches the repository version and is newer than the running version.
+0.8.5 is the bootstrap version for this mechanism, so it is installed once using the normal local installer ZIP. From the next release onward the panel checks the public `VERSION` file and, only when a newer version exists, downloads the release package described by `dist/manifest.txt`.
 
-Before installation Veyra creates backups, migrates configuration, rebuilds the CORE image, performs a health/version check and rolls back on failure.
+Release packages are split into small base64 chunks. The host-side updater joins the chunks locally, decodes the archive, verifies the published SHA256, checks that the package `VERSION` matches the repository version, then applies the update.
+
+Before installation Veyra creates backups, migrates configuration, rebuilds the CORE image, performs a health/version check and rolls back on failure. Differential update packages are supported, so future releases only need to publish changed files.
 
 The updater preserves local `.env`, `/config`, `/models` and `/data`.
 
