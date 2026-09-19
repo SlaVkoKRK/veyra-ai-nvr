@@ -2,7 +2,22 @@
 
 Veyra is a local AI video monitoring/NVR system focused on efficient motion-driven object detection, Coral EdgeTPU, Intel VAAPI and Home Assistant integration.
 
-Current CORE version: **0.8.5**.
+Current CORE version: **0.8.8**.
+
+## 0.8.8 — Intel VAAPI driver parity + GitHub update channel
+
+- Keeps the proven Frigate 0.17.2 FFmpeg 7.0.2 runtime from 0.8.7.
+- Aligns Intel VAAPI userspace with Frigate 0.17.2 on amd64: `intel-media-va-driver-non-free`, `i965-va-driver-shaders`, `libmfx1`, `libmfxgen1`, `libvpl2`.
+- `iHD` remains the default driver; `video.libva_driver: i965` stays available for A/B tests on Skylake.
+- 0.8.8 is published through the in-panel GitHub updater as an atomic release payload.
+
+## 0.8.7 — FFmpeg parity A/B
+
+- CORE now prefers the exact static FFmpeg 7.0.2 runtime shipped in Frigate 0.17.2 (`/usr/lib/ffmpeg/7.0/bin`).
+- Debian Bookworm FFmpeg 5.1 remains installed only as a fallback.
+- No motion/night/Coral/tracker cadence or thresholds were changed in this version.
+- Camera decoder status exposes `ffmpeg_version` so the active runtime can be verified from the API/UI diagnostics.
+- Purpose: isolate the persistent idle CPU gap versus Frigate without sacrificing night motion quality.
 
 ## Update channel
 
@@ -10,13 +25,9 @@ Veyra 0.8.5 introduces updates directly from the web panel:
 
 **Ustawienia systemu → Sprawdź aktualizacje / Aktualizuj**
 
-0.8.5 is the bootstrap version for this mechanism, so it is installed once using the normal local installer ZIP. From the next release onward the panel checks the public `VERSION` file and, only when a newer version exists, downloads the release package described by `dist/manifest.txt`.
+0.8.5 is the bootstrap version: install it once from the local installer ZIP. Future releases use the public GitHub `VERSION` plus a chunked differential package from `dist/manifest.txt`. The updater joins the chunks, decodes the archive, verifies SHA256 and package VERSION, then uses the existing backup / migration / health-check / rollback flow.
 
-Release packages are split into small base64 chunks. The host-side updater joins the chunks locally, decodes the archive, verifies the published SHA256, checks that the package `VERSION` matches the repository version, then applies the update.
-
-Before installation Veyra creates backups, migrates configuration, rebuilds the CORE image, performs a health/version check and rolls back on failure. Differential update packages are supported, so future releases only need to publish changed files.
-
-The updater preserves local `.env`, `/config`, `/models` and `/data`.
+Local `.env`, `/config`, `/models` and `/data` are preserved.
 
 ## Web restart controls
 
@@ -51,3 +62,13 @@ Only `config/ainvr.example.yaml` is published. It contains placeholders only. Ca
 
 The Home Assistant integration is maintained separately in:
 `SlaVkoKRK/veyra-home-assistant`.
+
+## 0.8.7 — CPU parity
+
+- ograniczone kodowanie `notification.jpg`: pierwszy kadr natychmiast, następne domyślnie co najmniej 1.25 s;
+- wspólne kodowanie JPEG dla current notification i thumbnail, gdy oba aktualizują się na tej samej klatce;
+- detector IPC nie przenosi pełnego health dict przy każdym ROI;
+- szybka ścieżka dla kwadratowego ROI 512 bez zbędnego letterbox canvas/copy;
+- cache maski bool w motion hot-path.
+
+Optymalizacje nie zmniejszają detect FPS, motion resolution ani czułości detekcji.
