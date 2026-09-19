@@ -1,28 +1,30 @@
 version: 4
 
-classes:
-  - person
-  - bicycle
-  - car
-  - motorcycle
-  - airplane
-  - bus
-  - train
-  - truck
-  - boat
-  - bird
-  - cat
-  - dog
-  - horse
-  - sheep
-  - cow
-  - elephant
-  - bear
-
+# Class names are read automatically from model metadata / embedded labels.
 coral:
   model: /models/model.tflite
   input_size: 512
   device: pci
+  # Frigate EdgeTPU yolo-generic interprets class output as logits.
+  score_mode: logits
+  frigate_compat: true
+
+
+performance:
+  frigate_parity: true
+
+night:
+  # Keep night/motion contrast sensitivity, but do not alter the actual image
+  # passed to Coral in Frigate parity mode. CLAHE/gamma detector preprocessing
+  # can make static IR textures look more object-like and increase false positives.
+  motion_contrast_enabled: true
+  coral_enhancement: true
+  coral_enhancement_mode: weak_motion_only
+  # Enhanced weak-night detections may acquire a track immediately. For TP/push,
+  # either a subsequent RAW tracker pass must confirm it or these consecutive-hit
+  # counts are required. This is source-specific anti-FP, not a global score hike.
+  weak_motion_prealert_hits: 3
+  weak_motion_confirm_hits: 3
 
 video:
   vaapi_device: /dev/dri/renderD128
@@ -92,3 +94,4 @@ cameras:
       contour_area_night: 6
       night_improve_contrast: true
       wind_guard_enabled: true
+      adaptive_region_grid_enabled: true
