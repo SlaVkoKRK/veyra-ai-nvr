@@ -1,11 +1,17 @@
 # Veyra AI-NVR
 
+## 0.9.6 — TFLite embedded metadata hotfix
+
+- reads Ultralytics class names directly from `metadata.json` embedded in the `.tflite`;
+- supports `TFLITE_ULTRALYTICS_METADATA.json` and legacy onnx2tf literal metadata;
+- keeps associated `labels.txt` / `.names` support as an additional path;
+- no detector, tracker, score, motion or notification thresholds changed.
+
+Current CORE version: **0.9.6**.
+
 ## 0.9.5 — model-defined classes
 
 Class names no longer need to be duplicated in `ainvr.yaml`. Veyra reads them from the active model (embedded TFLite labels or adjacent metadata/label files). The old top-level `classes:` list is accepted only as a backwards-compatible fallback.
-
-
-Current CORE version: **0.9.5**.
 
 ## 0.9.4 — night FP gate without losing distant-person acquisition
 
