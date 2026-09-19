@@ -1,14 +1,14 @@
 # Veyra AI-NVR
 
-Current CORE version: **0.8.8**.
+Current CORE version: **0.8.9**.
 
-## 0.8.8 updater hotfix
+## 0.8.9 emergency VAAPI rollback
 
-- keeps the proven Frigate 0.17.2 FFmpeg 7.0.2 runtime;
-- copies only the pinned Frigate 0.17.2 `iHD_drv_video.so` + `libigdgmm.so.12` into CORE;
-- keeps Debian `i965-va-driver` as fallback instead of copying an optional i965 blob from the Frigate image;
-- fixes the GitHub updater build failure that returned code 2 when the optional i965 export file was absent;
-- update payload remains differential and SHA256 verified.
+- reverts only the Intel VAAPI userspace override introduced in 0.8.8;
+- keeps the proven Frigate 0.17.2 FFmpeg 7.0.2 runtime from 0.8.7;
+- restores Debian Bookworm `intel-media-va-driver` + `i965-va-driver`, which was stable on the target Skylake host;
+- no changes to motion, night assist, Coral, tracking, notifications or detection cadence;
+- updater diagnostics now preserve the Docker build log for future failures.
 
 Use the in-panel updater from **Ustawienia systemu → Sprawdź aktualizacje / Aktualizuj**.
 
