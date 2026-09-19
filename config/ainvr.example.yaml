@@ -35,6 +35,8 @@ events:
   mqtt_active_update_interval: 2.0
   mqtt_stationary_update_interval: 8.0
   mqtt_min_update_interval: 0.75
+  # Current HACS notification JPEG cadence. First hit is always immediate.
+  notification_frame_interval: 1.25
 
 home_assistant:
   api_enabled: true
@@ -42,7 +44,7 @@ home_assistant:
 
 mqtt:
   enabled: false
-  host: 192.168.1.10
+  host: broker.example.invalid
   port: 1883
   user: CHANGE_ME
   password: CHANGE_ME
@@ -55,7 +57,7 @@ go2rtc:
     listen: :8554
   streams:
     kamera_1:
-      - rtsp://user:CHANGE_ME@192.168.1.201:554/cam/realmonitor?channel=1&subtype=0#media=video#backchannel=0
+      - rtsp://user:CHANGE_ME@camera.example.invalid:554/cam/realmonitor?channel=1&subtype=0#media=video#backchannel=0
 
 notifications:
   enabled: true
