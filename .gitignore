@@ -1,0 +1,36 @@
+# Never commit runtime secrets or user configuration
+.env
+.env.*
+!.env.example
+config/ainvr.yaml
+config/ainvr.migrated-user.yaml
+config/cameras.yaml
+config/go2rtc.yaml
+config/system.yaml
+config/generated/
+
+# Models and runtime data
+models/*
+!models/README.txt
+data/
+*.tflite
+*.onnx
+*.engine
+*.pt
+*.pth
+
+# Local databases/logs/backups
+*.db
+*.sqlite*
+*.log
+*.bak
+*.tar.gz
+*.zip
+__pycache__/
+*.py[cod]
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
