@@ -3,12 +3,11 @@
 </p>
 
 <p align="center">
-  <strong>Local-first AI Vision / NVR for RTSP cameras</strong><br>
+  <strong>AI Vision / NVR for RTSP cameras</strong><br>
   Detection-first · Coral EdgeTPU · Intel VAAPI · go2rtc · NIGHT/GLARE · Vision Verify · Gesture · Home Assistant
 </p>
 
 <p align="center">
-  <img alt="Local first" src="https://img.shields.io/badge/local--first-AI%20vision-111827?style=flat-square">
   <img alt="Coral EdgeTPU" src="https://img.shields.io/badge/Coral-EdgeTPU-2563eb?style=flat-square">
   <img alt="Intel VAAPI" src="https://img.shields.io/badge/Intel-VAAPI-0891b2?style=flat-square">
   <img alt="go2rtc" src="https://img.shields.io/badge/Live-go2rtc-0f766e?style=flat-square">
@@ -39,13 +38,7 @@ To znaczy, że kolejne moduły powinny wykorzystywać już policzone dane, zamia
 
 ## Interfejs
 
-<p align="center">
-  <img src="docs/screenshots/dashboard.svg" alt="VEYRA dashboard" width="100%">
-</p>
-
 Panel WWW jest responsywny i przygotowany zarówno pod desktop, jak i telefon. Z jednego miejsca można kontrolować kamery, Motion, Detection, snapshoty, przeglądać zdarzenia i obserwować stan hosta / VAAPI / Coral.
-
-> Zrzuty w README przedstawiają rzeczywisty układ i nazewnictwo GUI VEYRA, ale używają syntetycznych klatek demonstracyjnych — repozytorium nie publikuje prywatnych obrazów z kamer.
 
 ### Najważniejsze elementy GUI
 
@@ -133,10 +126,6 @@ VEYRA nie traktuje „nocy” jako jednego profilu.
 - **NIGHT_WHITE_COLOR** — noc po przejściu kamery na białe światło / kolor;
 - **NIGHT_GLARE** — przejściowy profil, gdy reflektor, czołówka lub inne silne źródło światła utrudnia detekcję.
 
-<p align="center">
-  <img src="docs/screenshots/glare-debug.svg" alt="VEYRA glare recovery debug" width="100%">
-</p>
-
 ### Glare Recovery
 
 GLARE nie jest tylko progiem jasności. Pipeline bierze pod uwagę m.in.:
@@ -156,10 +145,6 @@ GLARE nie jest tylko progiem jasności. Pipeline bierze pod uwagę m.in.:
 Brak aktualnego `PERSON` lub `CAR` nie jest twardym veto: człowiek z czołówką albo samochód może zostać całkowicie zasłonięty przez własne światło.
 
 ### Diagnostyka GLARE w Galerii
-
-<p align="center">
-  <img src="docs/screenshots/gallery.svg" alt="VEYRA gallery glare recovery" width="100%">
-</p>
 
 Dla eventu GLARE Galeria może przechować stan **Glare Recovery** dokładnie z chwili zdarzenia. Obok normalnego event view dostępne są m.in.:
 
@@ -250,10 +235,6 @@ Gesture jest feature flagiem — po wyłączeniu recognizer, konfiguracja i logi
 ---
 
 ## Integracje
-
-<p align="center">
-  <img src="docs/screenshots/integrations.svg" alt="VEYRA integrations" width="100%">
-</p>
 
 Integracje są rozdzielone na funkcje systemowe i kanały powiadomień.
 
@@ -407,7 +388,7 @@ Założenia release pipeline'u:
 
 ## Prywatność
 
-VEYRA jest projektowana jako **local-first**.
+VEYRA jest projektowana jako **lokalny**.
 
 Publiczne repozytorium nie powinno zawierać:
 
@@ -418,8 +399,6 @@ Publiczne repozytorium nie powinno zawierać:
 - snapshotów z prywatnych kamer;
 - baz eventów;
 - prywatnych modeli użytkownika.
-
-Zrzuty ekranu w tym README używają syntetycznych obrazów demonstracyjnych.
 
 ---
 
