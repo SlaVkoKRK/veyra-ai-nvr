@@ -4,7 +4,7 @@
 
 <p align="center">
   <strong>Local-first AI Vision / NVR for RTSP cameras</strong><br>
-  szybka detekcja obiektów, Coral EdgeTPU, Intel VAAPI, go2rtc, Vision verification i natywna integracja z Home Assistant.
+  Detection-first · Coral EdgeTPU · Intel VAAPI · go2rtc · NIGHT/GLARE · Vision Verify · Gesture · Home Assistant
 </p>
 
 <p align="center">
@@ -19,24 +19,48 @@
 
 ## Czym jest VEYRA?
 
-**VEYRA AI-NVR** to lokalny system analizy obrazu z kamer IP, zaprojektowany przede wszystkim pod **szybką detekcję, niski narzut CPU, czytelne snapshoty i integrację z automatyką domu**.
+**VEYRA AI-NVR** to lokalny system analizy obrazu dla kamer RTSP/IP. Projekt jest rozwijany przede wszystkim jako **AI detection / vision appliance**, a nie klasyczny rejestrator zapisujący wszystko 24/7.
 
-Projekt nie próbuje być klasycznym rejestratorem zapisującym wszystko 24/7. Aktualny kierunek to **detection-first**: kamera, ruch, inteligentnie dobrany ROI, Coral, tracking, snapshot i natychmiastowa informacja dla użytkownika. Dzięki temu zasoby są przeznaczane na analizę tego, co naprawdę dzieje się w kadrze.
+Główny przepływ jest prosty:
 
-VEYRA działa lokalnie — bez obowiązkowej chmury do detekcji, Live czy automatyki.
+```text
+kamera → motion → ROI → Coral → tracking → event → snapshot → automatyka
+```
 
-### Główne założenia
+VEYRA wykorzystuje Intel VAAPI do dekodowania, Coral EdgeTPU do inference, go2rtc do Live i własny pipeline MotionFusion / ROI / tracking, którego celem jest szybkie wykrycie obiektu przy możliwie małym narzucie CPU.
 
-- **RTSP / kamery IP** jako źródło obrazu;
-- **Intel VAAPI** do sprzętowego dekodowania wideo;
-- **Coral EdgeTPU** do szybkiego inference modeli INT8;
-- **go2rtc** jako lekki i płynny transport Live;
-- analiza ruchu i planowanie ROI przed inferencją;
-- tracking obiektów bez dokładania zbędnych przebiegów detektora;
-- osobne profile dla dnia, IR, białego światła nocnego i glare;
-- snapshoty, Galeria, diagnostyka i Vision verification;
-- pełna obsługa z telefonu;
-- **Home Assistant przez dedykowaną integrację HACS**.
+Najważniejsza zasada projektu:
+
+> **jedna analiza obrazu → wielu konsumentów**
+
+To znaczy, że kolejne moduły powinny wykorzystywać już policzone dane, zamiast dokładać drugi Coral pass, drugi resize pełnej klatki albo osobny kosztowny pipeline tylko na potrzeby UI czy diagnostyki.
+
+---
+
+## Interfejs
+
+<p align="center">
+  <img src="docs/screenshots/dashboard.svg" alt="VEYRA dashboard" width="100%">
+</p>
+
+Panel WWW jest responsywny i przygotowany zarówno pod desktop, jak i telefon. Z jednego miejsca można kontrolować kamery, Motion, Detection, snapshoty, przeglądać zdarzenia i obserwować stan hosta / VAAPI / Coral.
+
+> Zrzuty w README przedstawiają rzeczywisty układ i nazewnictwo GUI VEYRA, ale używają syntetycznych klatek demonstracyjnych — repozytorium nie publikuje prywatnych obrazów z kamer.
+
+### Najważniejsze elementy GUI
+
+- Panel główny z kamerami i globalnymi przełącznikami;
+- Monitor Wall;
+- widok pojedynczej kamery z Live / Debug;
+- Gallery / event details;
+- Coral 512 — faktyczne wejście detektora;
+- maski i filtry klas;
+- NIGHT / IR / White Light / GLARE debug;
+- Statystyki hosta, kamer, VAAPI i Corala;
+- Logi runtime;
+- Integracje, Vision, Gesture i aktualizacje;
+- jasny i ciemny motyw;
+- layout mobilny.
 
 ---
 
@@ -48,147 +72,205 @@ flowchart LR
     G --> LIVE[Live w przeglądarce]
 
     CAM --> DEC[FFmpeg + Intel VAAPI]
-    DEC --> MOTION[MotionFusion / analiza ruchu]
+    DEC --> MOTION[MotionFusion]
     MOTION --> ROI[Adaptive ROI scheduler]
     ROI --> CORAL[Coral EdgeTPU]
     CORAL --> TRACK[Tracking + filtry + maski]
 
-    TRACK --> SNAP[Snapshot / best frame]
-    SNAP --> GAL[Galeria zdarzeń]
-    SNAP --> VISION[Vision verifier TP / FP / ?]
+    TRACK --> SNAP[Best frame / snapshot]
+    SNAP --> GAL[Galeria + debug eventu]
+    SNAP --> VISION[Vision Verify TP / FP / ?]
     TRACK --> MQTT[MQTT / event lifecycle]
     MQTT --> HA[Home Assistant]
+
+    MOTION --> NIGHT[NIGHT / Illumination / GLARE]
+    NIGHT --> REC[Glare Recovery]
+    REC --> TRACK
 ```
 
 ### Live jest niezależny od pipeline'u AI
-
-Transport podglądu jest możliwie prosty:
 
 ```text
 browser → nginx → go2rtc → kamera
 ```
 
-Live nie jest przepychany przez Pythonowy relay obrazu. Detekcja może pracować równolegle, a overlay AI pozostaje lekką warstwą nad płynnym video.
+VEYRA nie przepycha Live przez Pythonowy relay obrazu. Detekcja działa równolegle, a overlay AI jest lekką warstwą nad strumieniem Live.
 
 ---
 
-## Najważniejsze funkcje
+## Detection-first
 
-| Moduł | Co robi |
-| --- | --- |
-| **Live / Monitor Wall** | płynny podgląd kamer, mobilny zoom i drag, widok wielu kamer, Live Track i status wykrytej klasy |
-| **MotionFusion** | analizuje ruch na mniejszej rozdzielczości i kieruje detektor tylko tam, gdzie jest to potrzebne |
-| **Coral EdgeTPU** | wykonuje inferencję INT8 na planowanych ROI; źródłowy ROI może mieć różny rozmiar, model finalnie dostaje swój stały input |
-| **Tracking** | utrzymuje obiekt pomiędzy inferencjami i pozwala ograniczyć liczbę kosztownych wywołań detektora |
-| **Night / Illumination Guard** | rozróżnia DAY, NIGHT_IR i NIGHT_WHITE_COLOR, a GLARE działa jako modyfikator przejściowy |
-| **Maski** | motion masks, object masks i odrzucanie według pokrycia bboxa; maskę można testować na prawdziwym snapshotcie z Galerii |
-| **Filtry klas** | score, area, proporcje W/H i reguły per klasa z czytelnym podglądem bboxa |
-| **Galeria** | snapshoty zdarzeń, bbox, score, dane detekcji, podgląd Coral oraz Vision Debug |
-| **Vision** | dodatkowa ocena snapshotu jako TP / FP / niepewne z możliwością ręcznej korekty |
-| **Statystyki** | host, kamery, FFmpeg/VAAPI, Coral, liczba inferencji, pominięte przebiegi schedulera i czasy Vision |
-| **Mobile UI** | responsywny panel, Live, Galeria, Logi, ustawienia i jasny/ciemny motyw |
-| **Updater** | aktualizacja z panelu z walidacją paczki, backupem, health-checkiem i rollbackiem |
+VEYRA nie wysyła bez przerwy całej klatki do Corala. Najpierw analizowany jest ruch i stan tracków, a dopiero potem planowany jest ROI dla detektora.
 
----
+Pipeline można uprościć do trzech warstw:
 
-## Detekcja zaprojektowana pod wydajność
+1. **Discovery** — MotionFusion wykrywa interesujący ruch i wskazuje region.
+2. **Inference** — pojedynczy Coral pass dla zaplanowanego ROI.
+3. **Tracking / confirmation** — obiekt jest utrzymywany i potwierdzany w czasie bez bezsensownego ponawiania inference na każdej klatce.
 
-VEYRA nie wysyła bez przerwy całej klatki do Corala. Pipeline najpierw wykorzystuje ruch, istniejące tracki, historię sceny i reguły rechecku, a dopiero później planuje region do inferencji.
+W scenach z drzewami, trawą lub wiatrem VEYRA może ograniczać nowe discovery ROI bez odbierania priorytetu już śledzonemu człowiekowi lub samochodowi.
 
-To pozwala zachować szybkie wykrycie obiektu bez dokładania drugiego przebiegu Corala tylko po to, aby „upewnić się” o tej samej klatce.
+### Stationary / Static FP Guard
 
-W praktyce ważne są trzy warstwy:
+VEYRA rozróżnia prawdziwy ruch obiektu od jitteru bboxa. Sam pojedynczy `position_change` trackera nie wystarcza do potwierdzenia ruchu — analizowana jest historia bboxów i lokalny MotionFusion.
 
-1. **Discovery** — wykrycie ruchu i wybór regionu.
-2. **Coral** — pojedynczy inference dla zaplanowanego ROI.
-3. **Tracking / confirmation** — utrzymanie i potwierdzanie obiektu w czasie.
+Ma to ograniczać typowe false positive'y typu:
 
-### Wiatr i duży ruch sceny
+- trawa widziana jako PERSON;
+- roślina / słupek / fragment budynku;
+- statyczny obiekt, którego bbox delikatnie „pływa” między inference.
 
-W scenach z drzewami, trawą lub intensywnym ruchem tła VEYRA może ograniczyć częstotliwość nowych discovery ROI, nie odbierając priorytetu już śledzonemu człowiekowi czy samochodowi.
+Osoba, która weszła w kadr i później stoi, pozostaje śledzona i podlega okresowemu stationary recheck.
 
 ---
 
-## Noc, IR, białe światło i glare
+## NIGHT, IR, White Light i GLARE
 
-Noc nie jest traktowana jako jeden profil obrazu.
+VEYRA nie traktuje „nocy” jako jednego profilu.
 
-VEYRA rozróżnia:
+- **DAY** — standardowy obraz dzienny;
+- **NIGHT_IR** — nocny obraz IR;
+- **NIGHT_WHITE_COLOR** — noc po przejściu kamery na białe światło / kolor;
+- **NIGHT_GLARE** — przejściowy profil, gdy reflektor, czołówka lub inne silne źródło światła utrudnia detekcję.
 
-- **DAY** — zwykły obraz dzienny;
-- **NIGHT_IR** — klasyczny nocny obraz z podczerwieni;
-- **NIGHT_WHITE_COLOR** — noc z oświetleniem białym / kolorowym obrazem;
-- **GLARE** — przejściowy modyfikator dla mocnego źródła światła, reflektora lub latarki skierowanej w stronę kamery.
+<p align="center">
+  <img src="docs/screenshots/glare-debug.svg" alt="VEYRA glare recovery debug" width="100%">
+</p>
 
-Illumination Guard, white-light protection i adaptacyjne maski są projektowane tak, aby reakcja na zmianę oświetlenia nie wymagała agresywnego podnoszenia globalnych progów detekcji.
+### Glare Recovery
+
+GLARE nie jest tylko progiem jasności. Pipeline bierze pod uwagę m.in.:
+
+- jasny rdzeń źródła;
+- bloom / halo;
+- wzrost powierzchni i jasności;
+- trajektorię małego źródła z daleka;
+- MotionFusion;
+- Illumination Guard;
+- Dynamic Glare Mask;
+- Threat Guard;
+- learned background / recovery mask.
+
+**Illumination Guard** ma odróżniać otwarcie drzwi / LIGHT_ON / broad scene flash od lokalnego zbliżającego się reflektora. **Threat Guard** chroni świeże, zbliżające się źródło przed nauczeniem go jako statyczne tło.
+
+Brak aktualnego `PERSON` lub `CAR` nie jest twardym veto: człowiek z czołówką albo samochód może zostać całkowicie zasłonięty przez własne światło.
+
+### Diagnostyka GLARE w Galerii
+
+<p align="center">
+  <img src="docs/screenshots/gallery.svg" alt="VEYRA gallery glare recovery" width="100%">
+</p>
+
+Dla eventu GLARE Galeria może przechować stan **Glare Recovery** dokładnie z chwili zdarzenia. Obok normalnego event view dostępne są m.in.:
+
+- Widok zdarzenia;
+- Czysty kadr;
+- Coral 512;
+- **Glare Recovery**.
+
+Dzięki temu po fakcie można sprawdzić, co system naprawdę widział w momencie alertu, zamiast analizować maskę, która kilka sekund później wygląda już inaczej.
 
 ---
 
-## Maski, filtry i testowanie na prawdziwym zdarzeniu
+## Maski i filtry
 
-Maski można oceniać nie tylko na bieżącym Live.
+VEYRA ma kilka warstw filtrowania:
 
-W edytorze można wybrać snapshot z Galerii dla aktualnej kamery. VEYRA odtwarza zapisany `snapshot_box`, wybiera klasę eventu i od razu pokazuje:
+- Motion masks;
+- object masks;
+- procentowe odrzucanie bboxa według pokrycia maską;
+- dynamiczne maski tła;
+- Dynamic Glare Mask;
+- filtry score / area / W:H per klasa;
+- strefy i reguły runtime.
 
-- procent pokrycia bboxa przez maskę;
-- próg `reject_overlap_percent`;
-- końcowy wynik **ODRZUCI / PRZEPUŚCI**.
-
-Dzięki temu strojenie maski nie wymaga czekania, aż człowiek lub samochód ponownie pojawi się dokładnie w tym samym miejscu.
+Maskę można testować na istniejącym evencie z Galerii. UI odtwarza zapisany bbox i pokazuje procent pokrycia oraz wynik **ODRZUCI / PRZEPUŚCI** bez czekania, aż obiekt ponownie pojawi się w tym samym miejscu.
 
 ---
 
-## Galeria i Vision verification
+## Galeria jako narzędzie diagnostyczne
 
-Galeria jest częścią pipeline'u diagnostycznego, a nie tylko listą zdjęć.
+Galeria nie jest tylko listą miniaturek.
 
-Każde zdarzenie może przechowywać m.in. klasę, score, bbox, wybraną klatkę, obraz wejściowy użyty przez Coral oraz dane potrzebne do późniejszej analizy.
+Event może przechowywać m.in.:
 
-Opcjonalny moduł **Vision** może dodatkowo ocenić snapshot jako:
+- klasę i score;
+- bbox;
+- najlepszą klatkę;
+- czysty kadr;
+- dokładny Coral input 512×512;
+- scenę DAY / NIGHT / GLARE;
+- dane MotionFusion;
+- wynik masek i filtrów;
+- Vision verdict;
+- Glare Recovery dla eventów GLARE.
+
+To pozwala analizować false positive i false negative na danych z dokładnie tej chwili, w której detektor podjął decyzję.
+
+---
+
+## Vision Verify
+
+VISION jest opcjonalną integracją i może być całkowicie wyłączony.
+
+Gdy jest aktywny, snapshot może dostać dodatkowy verdict:
 
 - **TP** — prawidłowa detekcja;
 - **FP** — false positive;
-- **?** — wynik niepewny.
+- **?** — niepewne;
+- wynik można poprawić ręcznie.
 
-Wynik można skorygować ręcznie. Dzięki temu VEYRA może zbierać wiedzę o problematycznych fragmentach sceny bez automatycznego „uczenia się” błędu bez kontroli użytkownika.
+Vision nie zastępuje Corala i nie bierze udziału w podstawowym inference obiektów. Jest dodatkową warstwą oceny eventu oraz źródłem danych do późniejszej analizy problematycznych obszarów sceny.
+
+Po wyłączeniu Vision znikają elementy Vision w Ustawieniach / Logach / Galerii, ale podstawowe widoki Coral, Maski, Scena, Czysty kadr i event details pozostają dostępne.
 
 ---
 
-## Interfejs
+## Gesture
 
-VEYRA ma własny responsywny panel WWW z jasnym i ciemnym motywem.
+VEYRA posiada opcjonalny moduł rozpoznawania gestów w zdefiniowanych strefach.
 
-### Panel główny
+Pipeline jest warstwowy:
 
-- Live kamer i stan Motion / Detection;
-- lekkie ramki AI;
-- klasy i score aktywnych obiektów;
-- ostatnie zdarzenia;
-- globalne sterowanie kamerami, detekcją i snapshotami.
+```text
+POSE WRIST → HAND PIXEL → MOTION fallback
+```
 
-### Monitor Wall
+- polygon zones z wieloma punktami;
+- kilka polygonów pod jedną logiczną strefą;
+- draggable reference PERSON;
+- Wave;
+- Circle CW / CCW;
+- Up / Down;
+- osobny debug źródła trackingu dłoni;
+- Pose uruchamiane tylko, gdy Gesture jest ARMED.
 
-Widok wielu kamer do szybkiego podglądu bez przechodzenia między stronami.
+Gesture jest feature flagiem — po wyłączeniu recognizer, konfiguracja i logi Gesture znikają z aktywnego UI.
 
-### Widok pojedynczej kamery
+---
 
-- Live;
-- Live Track;
-- przełączanie kamer;
-- tryby Vision / Coral / Debug;
-- ustawienia i testowanie filtrów.
+## Integracje
 
-### Galeria
+<p align="center">
+  <img src="docs/screenshots/integrations.svg" alt="VEYRA integrations" width="100%">
+</p>
 
-- szybkie filtrowanie eventów;
-- czytelne oznaczenie klasy i score;
-- Vision verdict;
-- podgląd czystego kadru, Coral input i Vision Debug;
-- ręczna korekta TP / FP.
+Integracje są rozdzielone na funkcje systemowe i kanały powiadomień.
 
-### Statystyki
+### Ogólne
 
-Osobna sekcja telemetryczna dla hosta, kamer, Corala i Vision — bez dokładania inferencji wyłącznie po to, aby wygenerować statystykę.
+- Gesture;
+- Vision;
+- Home Assistant / HACS / MQTT.
+
+### Powiadomienia
+
+- Telegram;
+- ntfy;
+- Pushover;
+- Discord webhook;
+- szablony wiadomości;
+- testy providerów uruchamiane tylko na żądanie.
 
 ---
 
@@ -198,94 +280,170 @@ Osobna sekcja telemetryczna dla hosta, kamer, Corala i Vision — bez dokładani
   <img src="https://raw.githubusercontent.com/SlaVkoKRK/veyra-home-assistant/main/brand/icon.png" alt="Veyra Home Assistant" width="96">
 </p>
 
-VEYRA ma osobną, natywną integrację **Home Assistant**, przygotowaną do instalacji przez **HACS jako Custom Repository / Integration**:
+Dedykowana integracja:
 
 **[SlaVkoKRK/veyra-home-assistant](https://github.com/SlaVkoKRK/veyra-home-assistant)**
 
-Po instalacji integrację dodaje się standardowo z:
+Integracja udostępnia m.in.:
 
-**Ustawienia → Urządzenia i usługi → Dodaj integrację → Veyra**
+- encje Camera;
+- Motion / Objects / Night / Online;
+- globalne i per-camera AI Detection;
+- Notifications;
+- Snapshots;
+- poziomy powiadomień per klasa;
+- aktywne klasy i liczbę detekcji;
+- lifecycle eventów `prealert → confirmed → repeat`.
 
-Do konfiguracji wystarczy adres / host VEYRA i port panelu WWW. Integracja sama pobiera informacje o kamerach, aktywnym modelu, klasach, go2rtc i MQTT.
+VEYRA może być więc używana nie tylko jako panel kamer, ale także jako lokalny sensor wizualny dla automatyki domu.
 
-### Co pojawia się w Home Assistant
+---
 
-- osobne encje **Camera** dla kamer VEYRA;
-- sensory binarne **Motion**, **Objects**, **Night** i **Online**;
-- globalne przełączniki **AI Detection**, **Notifications** i **Snapshots**;
-- te same przełączniki również **per kamera**;
-- dynamiczne poziomy powiadomień dla klas modelu: **Wyłączone / Ciche / Normalne / Pilne / Krytyczne**;
-- atrybuty aktywnych obiektów z klasami i liczbą detekcji.
+# VEYRA i Frigate — wspólne korzenie, inny kierunek
 
-### Powiadomienia bez budowania własnych automatyzacji
+VEYRA powstała na bazie **doświadczeń z używania Frigate** i świadomie korzysta z podobnej filozofii edge AI: lokalne przetwarzanie, motion-first detection, akceleracja sprzętowa, Coral, MQTT, go2rtc i integracja z Home Assistant.
 
-Integracja obsługuje natywny lifecycle zdarzenia VEYRA:
+**VEYRA nie próbuje być kopią Frigate ani zamiennikiem 1:1.** Projekt rozwinął osobny pipeline i skupia się na innych priorytetach.
 
-```text
-prealert → confirmed → repeat
-```
+Frigate jest dojrzałym, pełnym NVR-em i oferuje m.in. recording/review, semantic search, face recognition, GenAI i rozbudowane enrichmenty. VEYRA jest obecnie bardziej wyspecjalizowanym detection-first appliance i nie próbuje udawać, że w każdym zastosowaniu będzie lepszym wyborem.
 
-- **prealert** — pierwszy szybki alert;
-- **confirmed** — potwierdzenie zapisanego eventu;
-- **repeat** — ponowne ostrzeżenie, gdy obiekt nadal jest aktywny.
+### Gdzie podejście jest podobne
 
-Można wybrać telefony `notify.mobile_app_*`, które mają otrzymywać alerty, oraz ustawić osobny poziom ważności dla każdej klasy modelu.
+Oba projekty stawiają na:
 
-Obraz powiadomienia korzysta z wersjonowanego `current.jpg`, dzięki czemu kolejny alert tego samego aktywnego zdarzenia może pokazać nowszą i lepszą klatkę zamiast obrazu z cache.
+- lokalne przetwarzanie obrazu;
+- motion jako sygnał do uruchamiania detekcji;
+- akcelerację sprzętową;
+- tracking obiektów;
+- maski / strefy / filtry;
+- go2rtc / Live;
+- MQTT i Home Assistant;
+- możliwość pracy z Coral EdgeTPU.
 
-Po restarcie VEYRA integracja potrafi odtworzyć stan i ponownie podłączyć subskrypcję MQTT bez ręcznego przeładowywania integracji.
+### Co VEYRA robi inaczej
+
+Poniższe elementy są projektowymi rozszerzeniami VEYRA i **nie są częścią standardowego, udokumentowanego pipeline'u Frigate w tej samej formie**:
+
+| VEYRA | Podejście |
+| --- | --- |
+| **NIGHT_GLARE** | osobny przejściowy profil sceny dla czołówek i reflektorów |
+| **Glare Recovery** | odzyskiwanie obrazu + core/halo + zapis recovery mask z chwili eventu |
+| **Threat Guard + Dynamic Glare Mask** | ruchome / rosnące źródło ma priorytet nad learnerem tła |
+| **Illumination Guard** | rozdzielenie broad scene flash od lokalnego zagrożenia GLARE |
+| **Coral 512 w event details** | podgląd dokładnego obrazu przekazanego do inference |
+| **Event-first debug** | scena, czysty kadr, Coral input, maski i GLARE analizowane z jednego eventu |
+| **Vision TP / FP / ?** | opcjonalny verifier snapshotu z ręczną korektą verdictu |
+| **Gesture** | polygon zones + Pose wrist + pixel hand + motion fallback |
+| **Mask overlap preview** | test maski na historycznym evencie z procentem pokrycia bboxa |
+| **Static FP Guard** | pre-TP analiza jitteru bboxa, historii ruchu i local MotionFusion |
+
+### Gdzie Frigate ma inny, szerszy zakres
+
+Frigate może być lepszym wyborem, jeśli najważniejsze są:
+
+- pełny NVR i ciągłe nagrywanie;
+- rozbudowany Review / Explore;
+- semantic search;
+- face recognition;
+- GenAI object descriptions / chat;
+- rozbudowany ekosystem i duża społeczność;
+- bardziej kompletna platforma archiwizacji materiału wideo.
+
+VEYRA może być ciekawsza dla osób, które wolą:
+
+- detection-first zamiast recording-first;
+- bardzo szczegółową diagnostykę tego, **dlaczego** event powstał;
+- własne mechanizmy nocne i GLARE;
+- eksperymentalne funkcje edge AI;
+- ręczne strojenie pipeline'u pod konkretną scenę i sprzęt;
+- lekką integrację z Home Assistant bez budowania pełnego systemu archiwizacji.
+
+**Nie ma jednego zwycięzcy.** Dla jednego środowiska Frigate będzie lepszym narzędziem, dla innego VEYRA może lepiej odpowiadać konkretnym problemom.
+
+Dokumentacja Frigate, do której odnosimy porównanie:
+
+- [Frigate — Introduction](https://docs.frigate.video/)
+- [Frigate — Masks](https://docs.frigate.video/configuration/masks/)
+- [Frigate — Stationary objects](https://docs.frigate.video/configuration/stationary_objects/)
+- [Frigate — Semantic Search](https://docs.frigate.video/configuration/semantic_search/)
+- [Frigate — Face Recognition](https://docs.frigate.video/configuration/face_recognition/)
+- [Frigate — Generative AI](https://docs.frigate.video/configuration/genai/genai_config/)
 
 ---
 
 ## Typowe środowisko
 
-VEYRA jest rozwijana z myślą o niewielkich serwerach domowych i edge AI, m.in.:
+VEYRA jest rozwijana z myślą o niedużych serwerach edge/home-lab, m.in.:
 
 - Proxmox / LXC;
-- Intel iGPU z VAAPI;
+- Intel iGPU / VAAPI;
 - Coral PCIe / USB EdgeTPU;
-- kamery Dahua / inne RTSP;
+- kamery Dahua i inne RTSP;
 - modele YOLO INT8 przygotowane pod EdgeTPU;
-- Home Assistant + MQTT.
+- go2rtc;
+- MQTT;
+- Home Assistant.
 
-System nie wymaga konkretnej marki kamery, jeżeli dostępny jest stabilny strumień zgodny z używanym pipeline'em.
+System nie wymaga konkretnej marki kamery, jeżeli dostępny jest stabilny strumień RTSP zgodny z pipeline'em.
 
 ---
 
-## Prywatność i bezpieczeństwo repozytorium
+## Aktualizacje
 
-Repozytorium publiczne nie powinno zawierać danych produkcyjnych.
+VEYRA ma własny mechanizm aktualizacji z panelu.
 
-Nie publikujemy tutaj:
+Założenia release pipeline'u:
+
+- kompatybilne aktualizacje z wcześniejszych wersji;
+- paczka manual ZIP;
+- paczka remote TAR.GZ;
+- SHA-256;
+- manifest;
+- health-check;
+- backup i rollback;
+- publikacja przez GitHub Releases / channel metadata.
+
+---
+
+## Prywatność
+
+VEYRA jest projektowana jako **local-first**.
+
+Publiczne repozytorium nie powinno zawierać:
 
 - haseł do kamer;
 - danych MQTT;
-- prywatnych adresów i konfiguracji środowiska;
+- prywatnych hostów i adresów;
+- produkcyjnych konfiguracji;
 - snapshotów z prywatnych kamer;
-- baz wydarzeń;
-- modeli należących do użytkownika.
+- baz eventów;
+- prywatnych modeli użytkownika.
 
-Konfiguracja przykładowa powinna zawierać wyłącznie placeholdery. Zasady bezpieczeństwa opisuje `SECURITY.md`.
+Zrzuty ekranu w tym README używają syntetycznych obrazów demonstracyjnych.
 
 ---
 
-## Zakres projektu
+## Aktualny kierunek projektu
 
-VEYRA jest obecnie rozwijana przede wszystkim jako **AI detection / vision appliance**. Priorytetem są:
+Priorytety VEYRA:
 
-- szybkość pierwszego wykrycia;
-- niskie użycie CPU;
-- dobra praca małych i odległych obiektów;
-- odporność na noc, światła i ruch tła;
-- użyteczne snapshoty;
-- transparentna diagnostyka;
-- automatyka przez Home Assistant.
+- szybka pierwsza detekcja;
+- niski CPU;
+- pojedynczy Coral pass na zaplanowany ROI;
+- małe i odległe obiekty;
+- mniej static false positives;
+- lepsza praca nocą;
+- ochrona przed czołówką / reflektorami;
+- transparentny debug;
+- sensowne snapshoty;
+- automatyka przez Home Assistant;
+- rozwój funkcji Vision / Gesture bez obciążania głównego pipeline'u.
 
-**Ciągłe nagrywanie nie jest obecnie głównym celem projektu.**
+**Ciągłe nagrywanie nie jest obecnie głównym celem VEYRA.**
 
 ---
 
 <p align="center">
   <strong>VEYRA</strong><br>
-  Cameras · Motion · Coral · Vision · Home Assistant
+  Cameras · Motion · Coral · Night · Glare · Vision · Gesture · Home Assistant
 </p>
