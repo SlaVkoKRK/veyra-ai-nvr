@@ -1,9 +1,9 @@
 {
-  "version": "1.2.119",
+  "version": "1.2.120",
   "min_version": "1.2.31",
-  "sha256": "9816cffc761105c8d541d55454cf75fb0d2782d38b005494643f14cebde35fff",
+  "sha256": "4cff371e69ad7a7425634102337cd2196952d7ebd60a90777a18f3dbaa8ce106",
   "package_encoding": "raw",
-  "package_url": "https://github.com/SlaVkoKRK/veyra-ai-nvr/releases/download/v1.2.119/veyra_update_v1_2_119_remote.tar.gz",
+  "package_url": "https://github.com/SlaVkoKRK/veyra-ai-nvr/releases/download/v1.2.120/veyra_update_v1_2_120_remote.tar.gz",
   "sha256_url": "https://raw.githubusercontent.com/SlaVkoKRK/veyra-ai-nvr/main/dist/veyra_update.tar.gz.sha256",
-  "release_notes_url": "https://raw.githubusercontent.com/SlaVkoKRK/veyra-ai-nvr/main/README_V1_2_119.md"
+  "release_notes_url": "https://raw.githubusercontent.com/SlaVkoKRK/veyra-ai-nvr/main/README_V1_2_120.md"
 }
